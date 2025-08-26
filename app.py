@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -9,6 +10,12 @@ from fastapi.responses import FileResponse
 
 from task.database import DatabaseManager
 from task.report_generator import ReportGenerator
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 report_status: Dict[str, str] = {}
@@ -83,7 +90,7 @@ async def generate_report_async(report_id: str):
         report_results[report_id] = csv_file_path
     except Exception as e:
         report_status[report_id] = "Failed"
-        print(f"Error generating report {report_id}: {str(e)}")
+        logger.error(f"Error generating report {report_id}: {str(e)}")
 
 
 if __name__ == "__main__":
