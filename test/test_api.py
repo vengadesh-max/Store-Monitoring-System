@@ -1,29 +1,36 @@
-import requests
-import time
-import os
-import pandas as pd
 import asyncio
+import logging
+import os
+import time
+from io import StringIO
+
+import pandas as pd
+import requests
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 def test_api_end_to_end():
     """Test the complete API flow end-to-end"""
     base_url = "http://localhost:8000"
 
-    print("=== Store Monitoring API End-to-End Test ===")
+    logger.info("=== Store Monitoring API End-to-End Test ===")
 
     # Test 1: Check if server is running
     try:
         response = requests.get(f"{base_url}/", timeout=5)
         if response.status_code == 200:
-            print(f"✓ Server is running: {response.json()}")
+            logger.info(f" Server is running: {response.json()}")
         else:
-            print(f"✗ Server returned status code: {response.status_code}")
+            logger.error(f"✗ Server returned status code: {response.status_code}")
             return False
     except requests.exceptions.ConnectionError:
-        print("✗ Server not running. Please start the server with: python app.py")
+        logger.error(" Server not running. Please start the server with: python app.py")
         return False
     except Exception as e:
-        print(f"✗ Error connecting to server: {e}")
+        logger.error(f" Error connecting to server: {e}")
         return False
 
     # Test 2: Trigger report generation
@@ -31,12 +38,12 @@ def test_api_end_to_end():
         response = requests.post(f"{base_url}/trigger_report")
         if response.status_code == 200:
             report_id = response.json()["report_id"]
-            print(f"✓ Report triggered successfully: {report_id}")
+            logger.info(f" Report triggered successfully: {report_id}")
         else:
-            print(f"✗ Failed to trigger report: {response.status_code}")
+            logger.error(f" Failed to trigger report: {response.status_code}")
             return False
     except Exception as e:
-        print(f"✗ Error triggering report: {e}")
+        logger.error(f" Error triggering report: {e}")
         return False
 
     # Test 3: Check report status (poll until complete)
@@ -50,29 +57,29 @@ def test_api_end_to_end():
                 if "application/json" in content_type or response.text.startswith("{"):
                     try:
                         data = response.json()
-                        if "status" in data:
-                            status = data["status"]
-                            print(f"  Report status: {status}")
-                            if status == "Complete":
-                                print("✓ Report generation completed!")
-                                break
-                            elif status == "Failed":
-                                print("✗ Report generation failed!")
-                                return False
+                                                    if "status" in data:
+                                status = data["status"]
+                                logger.info(f"  Report status: {status}")
+                                if status == "Complete":
+                                    logger.info(" Report generation completed!")
+                                    break
+                                elif status == "Failed":
+                                    logger.error(" Report generation failed!")
+                                    return False
                     except:
                         pass
                 else:
                     # CSV file returned
-                    print("✓ Report downloaded successfully!")
-                    print(f"  File size: {len(response.content)} bytes")
+                    logger.info("✓ Report downloaded successfully!")
+                    logger.info(f"  File size: {len(response.content)} bytes")
 
                     # Test 4: Validate CSV content
                     csv_content = response.text
-                    print(f"  Content preview: {csv_content[:200]}...")
+                    logger.info(f"  Content preview: {csv_content[:200]}...")
 
                     # Parse CSV and validate schema
                     try:
-                        df = pd.read_csv(pd.StringIO(csv_content))
+                        df = pd.read_csv(StringIO(csv_content))
                         expected_columns = [
                             "store_id",
                             "uptime_last_hour",
@@ -84,38 +91,38 @@ def test_api_end_to_end():
                         ]
 
                         if all(col in df.columns for col in expected_columns):
-                            print("✓ CSV schema is correct")
-                            print(f"  Number of stores in report: {len(df)}")
-                            print(f"  Sample data:")
-                            print(df.head().to_string())
+                            logger.info(" CSV schema is correct")
+                            logger.info(f"  Number of stores in report: {len(df)}")
+                            logger.info("  Sample data:")
+                            logger.info(df.head().to_string())
                         else:
-                            print("✗ CSV schema is incorrect")
+                            logger.error("✗ CSV schema is incorrect")
                             return False
                     except Exception as e:
-                        print(f"✗ Error parsing CSV: {e}")
+                        logger.error(f" Error parsing CSV: {e}")
                         return False
 
                     break
             else:
-                print(f"✗ Error checking report status: {response.status_code}")
+                logger.error(f" Error checking report status: {response.status_code}")
                 return False
         except Exception as e:
-            print(f"✗ Error checking report status: {e}")
+            logger.error(f" Error checking report status: {e}")
             return False
 
         time.sleep(2)  # Wait 2 seconds before next check
 
     if attempt == max_attempts - 1:
-        print("✗ Report generation timed out")
+        logger.error("✗ Report generation timed out")
         return False
 
-    print("\n=== API Requirements Verification ===")
-    print("✓ /trigger_report endpoint: Returns report_id")
-    print("✓ /get_report endpoint: Returns status and CSV file")
-    print("✓ Trigger + poll architecture: Working correctly")
-    print("✓ CSV output: Correct schema and data")
+    logger.info("\n=== API Requirements Verification ===")
+    logger.info(" /trigger_report endpoint: Returns report_id")
+    logger.info(" /get_report endpoint: Returns status and CSV file")
+    logger.info(" Trigger + poll architecture: Working correctly")
+    logger.info(" CSV output: Correct schema and data")
 
-    print("\n=== All API tests passed! ===")
+    logger.info("\n=== All API tests passed! ===")
     return True
 
 
@@ -123,29 +130,29 @@ def test_error_handling():
     """Test error handling scenarios"""
     base_url = "http://localhost:8000"
 
-    print("\n=== Testing Error Handling ===")
+    logger.info("\n=== Testing Error Handling ===")
 
     # Test 1: Invalid report ID
     try:
         response = requests.get(f"{base_url}/get_report/invalid-report-id")
         if response.status_code == 404:
-            print("✓ Invalid report ID returns 404")
+            logger.info(" Invalid report ID returns 404")
         else:
-            print(f"✗ Invalid report ID should return 404, got {response.status_code}")
+            logger.error(f" Invalid report ID should return 404, got {response.status_code}")
     except Exception as e:
-        print(f"✗ Error testing invalid report ID: {e}")
+        logger.error(f" Error testing invalid report ID: {e}")
 
     # Test 2: Invalid endpoint
     try:
         response = requests.get(f"{base_url}/invalid_endpoint")
         if response.status_code == 404:
-            print("✓ Invalid endpoint returns 404")
+            logger.info(" Invalid endpoint returns 404")
         else:
-            print(f"✗ Invalid endpoint should return 404, got {response.status_code}")
+            logger.error(f" Invalid endpoint should return 404, got {response.status_code}")
     except Exception as e:
-        print(f"✗ Error testing invalid endpoint: {e}")
+        logger.error(f" Error testing invalid endpoint: {e}")
 
-    print("✓ Error handling tests completed")
+    logger.info("✓ Error handling tests completed")
 
 
 if __name__ == "__main__":
@@ -153,6 +160,6 @@ if __name__ == "__main__":
     if test_api_end_to_end():
         # Run error handling tests
         test_error_handling()
-        print("\n🎉 All tests completed successfully!")
+        logger.info("\n All tests completed successfully!")
     else:
-        print("\n❌ Tests failed!")
+        logger.error("\n Tests failed!")
