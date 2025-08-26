@@ -1,9 +1,13 @@
-import pandas as pd
-from datetime import datetime, timedelta
-import pytz
-from typing import List, Tuple
+import logging
 import os
+from datetime import datetime, timedelta
+from typing import List, Tuple
+
+import pandas as pd
+import pytz
 from task.database import DatabaseManager
+
+logger = logging.getLogger(__name__)
 
 
 class ReportGenerator:
@@ -12,7 +16,7 @@ class ReportGenerator:
 
     async def generate_report(self, report_id: str) -> str:
         """Generate store monitoring report with uptime/downtime metrics"""
-        print(f"Starting report generation for {report_id}...")
+        logger.info(f"Starting report generation for {report_id}...")
 
         store_ids = self.db_manager.get_all_store_ids()
         store_status_df = self.db_manager.get_store_status_data()
@@ -31,7 +35,7 @@ class ReportGenerator:
         results = []
 
         for store_id in store_ids:
-            print(f"Processing store: {store_id}")
+            logger.info(f"Processing store: {store_id}")
 
             store_status = store_status_df[
                 store_status_df["store_id"] == store_id
@@ -89,7 +93,7 @@ class ReportGenerator:
         csv_file_path = os.path.abspath(f"reports/store_report_{report_id}.csv")
         results_df.to_csv(csv_file_path, index=False)
 
-        print(f"Report generated successfully: {csv_file_path}")
+        logger.info(f"Report generated successfully: {csv_file_path}")
         return csv_file_path
 
     def _calculate_period_metrics(
