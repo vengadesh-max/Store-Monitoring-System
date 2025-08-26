@@ -1,9 +1,11 @@
-import sqlite3
-import pandas as pd
-import asyncio
-from datetime import datetime
-from typing import List
+import logging
 import os
+import sqlite3
+from typing import List
+
+import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
@@ -73,16 +75,16 @@ class DatabaseManager:
             conn.commit()
             conn.close()
         except Exception as e:
-            print(f"Error initializing database: {e}")
+            logger.error(f"Error initializing database: {e}")
             # Try to remove the database file if it's corrupted
             if os.path.exists(self.db_path):
                 try:
                     os.remove(self.db_path)
-                    print(f"Removed corrupted database file: {self.db_path}")
+                    logger.info(f"Removed corrupted database file: {self.db_path}")
                     # Retry initialization
                     await self.initialize_database()
                 except Exception as e2:
-                    print(f"Failed to remove database file: {e2}")
+                    logger.error(f"Failed to remove database file: {e2}")
                     raise e
 
     async def load_data_from_csv(self):
@@ -96,13 +98,13 @@ class DatabaseManager:
             cursor.execute("DELETE FROM timezones")
 
             # Load store status data
-            print("Loading store status data...")
+            logger.info("Loading store status data...")
             if os.path.exists("test_data/store_status.csv"):
                 store_status_df = pd.read_csv("test_data/store_status.csv")
-                print("Using test data")
+                logger.info("Using test data")
             else:
                 store_status_df = pd.read_csv("data/store_status.csv")
-                print("Using production data")
+                logger.info("Using production data")
             store_status_df.to_sql(
                 "store_status", conn, if_exists="append", index=False
             )
@@ -111,10 +113,10 @@ class DatabaseManager:
             self.current_timestamp = pd.to_datetime(
                 store_status_df["timestamp_utc"].max()
             )
-            print(f"Current timestamp set to: {self.current_timestamp}")
+            logger.info(f"Current timestamp set to: {self.current_timestamp}")
 
             # Load business hours data
-            print("Loading business hours data...")
+            logger.info("Loading business hours data...")
             if os.path.exists("test_data/menu_hours.csv"):
                 business_hours_df = pd.read_csv("test_data/menu_hours.csv")
             else:
@@ -124,7 +126,7 @@ class DatabaseManager:
             )
 
             # Load timezones data
-            print("Loading timezones data...")
+            logger.info("Loading timezones data...")
             if os.path.exists("test_data/timezones.csv"):
                 timezones_df = pd.read_csv("test_data/timezones.csv")
             else:
@@ -133,9 +135,9 @@ class DatabaseManager:
 
             conn.commit()
             conn.close()
-            print("Data loading completed!")
+            logger.info("Data loading completed!")
         except Exception as e:
-            print(f"Error loading data from CSV: {e}")
+            logger.error(f"Error loading data from CSV: {e}")
             raise e
 
     def get_store_status_data(self, store_id: str = None) -> pd.DataFrame:
