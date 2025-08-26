@@ -80,3 +80,10 @@ store_id, uptime_last_hour, uptime_last_day, uptime_last_week, downtime_last_hou
 - Add basic authentication (username/password)
 - Support for different report formats (JSON, Excel)
 - Add real-time store status updates
+
+## Engineering Practices
+
+- Replaced print statements with logging across app, task, and tests.
+- Standardized import order (isort style) and removed unused imports.
+- Added testcases to check logics
+- Hardened file serving (absolute paths, existence checks) and used FastAPI lifespan for startup.
