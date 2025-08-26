@@ -1,10 +1,17 @@
 import pandas as pd
 import sqlite3
+import logging
 import os
 import sys
 from datetime import datetime, timedelta
 import pytz
 from typing import List, Dict, Tuple
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -91,10 +98,10 @@ def create_test_data():
     test_business_hours.to_csv("test_data/menu_hours.csv", index=False)
     test_timezones.to_csv("test_data/timezones.csv", index=False)
 
-    print("✓ Test data created successfully!")
-    print(f"  - Store status: {len(test_store_status)} observations")
-    print(f"  - Business hours: {len(test_business_hours)} entries")
-    print(f"  - Timezones: {len(test_timezones)} stores")
+    logger.info("✓ Test data created successfully!")
+    logger.info(f"  - Store status: {len(test_store_status)} observations")
+    logger.info(f"  - Business hours: {len(test_business_hours)} entries")
+    logger.info(f"  - Timezones: {len(test_timezones)} stores")
 
 
 async def test_database_schema():
@@ -103,10 +110,10 @@ async def test_database_schema():
         db_manager = DatabaseManager("test_store_monitoring.db")
         await db_manager.initialize_database()
         await db_manager.load_data_from_csv()
-        print("✓ Database schema test successful!")
+        logger.info("✓ Database schema test successful!")
         return True
     except Exception as e:
-        print(f"✗ Database schema test failed: {e}")
+        logger.error(f"✗ Database schema test failed: {e}")
         return False
 
 
@@ -117,13 +124,13 @@ def test_data_requirements():
         store_status_df = pd.read_csv("test_data/store_status.csv")
         business_hours_df = pd.read_csv("test_data/menu_hours.csv")
         timezones_df = pd.read_csv("test_data/timezones.csv")
-        
+
         # Test 1: Store status data has correct columns
         required_columns = ["store_id", "timestamp_utc", "status"]
         assert all(
             col in store_status_df.columns for col in required_columns
         ), "Store status missing required columns"
-        print("✓ Store status data has correct schema")
+        logger.info("✓ Store status data has correct schema")
 
         # Test 2: Business hours data has correct schema
         required_columns = [
@@ -135,37 +142,37 @@ def test_data_requirements():
         assert all(
             col in business_hours_df.columns for col in required_columns
         ), "Business hours missing required columns"
-        print("✓ Business hours data has correct schema")
+        logger.info("✓ Business hours data has correct schema")
 
         # Test 3: Timezone data has correct schema
         required_columns = ["store_id", "timezone_str"]
         assert all(
             col in timezones_df.columns for col in required_columns
         ), "Timezone data missing required columns"
-        print("✓ Timezone data has correct schema")
+        logger.info("✓ Timezone data has correct schema")
 
         # Test 4: Status values are valid
         valid_statuses = ["active", "inactive"]
         assert all(
             status in valid_statuses for status in store_status_df["status"].unique()
         ), "Invalid status values"
-        print("✓ Status values are valid")
+        logger.info("✓ Status values are valid")
 
         # Test 5: Day of week values are valid (0-6)
         assert all(
             0 <= day <= 6 for day in business_hours_df["dayOfWeek"]
         ), "Invalid day of week values"
-        print("✓ Day of week values are valid")
+        logger.info("✓ Day of week values are valid")
 
         # Test 6: Timestamps are in UTC format
         timestamps = pd.to_datetime(store_status_df["timestamp_utc"])
-        print(f"✓ Timestamps are in UTC format (sample: {timestamps.iloc[0]})")
+        logger.info(f"✓ Timestamps are in UTC format (sample: {timestamps.iloc[0]})")
 
-        print("✓ All data requirements satisfied!")
+        logger.info("✓ All data requirements satisfied!")
         return True
 
     except Exception as e:
-        print(f"✗ Data requirements test failed: {e}")
+        logger.error(f"✗ Data requirements test failed: {e}")
         return False
 
 
@@ -200,7 +207,7 @@ def test_report_schema():
         assert all(
             col in sample_report.columns for col in expected_columns
         ), "Report missing required columns"
-        print("✓ Report schema is correct")
+        logger.info("✓ Report schema is correct")
 
         # Test data types
         assert sample_report["uptime_last_hour"].dtype in [
@@ -211,13 +218,13 @@ def test_report_schema():
             "float64",
             "int64",
         ], "Downtime should be numeric"
-        print("✓ Report data types are correct")
+        logger.info("✓ Report data types are correct")
 
-        print("✓ Report schema requirements satisfied!")
+        logger.info("✓ Report schema requirements satisfied!")
         return True
 
     except Exception as e:
-        print(f"✗ Report schema test failed: {e}")
+        logger.error(f"✗ Report schema test failed: {e}")
         return False
 
 
@@ -228,42 +235,42 @@ def test_business_logic():
         timezone = pytz.timezone("America/New_York")
         utc_time = datetime(2024, 10, 14, 10, 0, 0, tzinfo=pytz.UTC)
         local_time = utc_time.astimezone(timezone)
-        print(f"✓ Timezone conversion works: {utc_time} -> {local_time}")
+        logger.info(f"✓ Timezone conversion works: {utc_time} -> {local_time}")
 
         # Test 2: Business hours calculation
         business_hours_df = pd.read_csv("test_data/menu_hours.csv")
         store_1_hours = business_hours_df[business_hours_df["store_id"] == "store_1"]
         assert len(store_1_hours) > 0, "Store 1 should have business hours"
-        print("✓ Business hours filtering works")
+        logger.info("✓ Business hours filtering works")
 
         # Test 3: Default timezone (America/Chicago)
-        timezones_df = pd.read_csv("test_data/timezones.csv")
+        timezones_df = pd.read_csv("test_data/menu_hours.csv")
         missing_store_timezone = timezones_df[
             timezones_df["store_id"] == "nonexistent_store"
         ]
         assert len(missing_store_timezone) == 0, "Should handle missing timezone"
-        print("✓ Default timezone handling works")
+        logger.info("✓ Default timezone handling works")
 
         # Test 4: 24/7 store handling (store_2 has no business hours)
         store_2_hours = business_hours_df[business_hours_df["store_id"] == "store_2"]
         assert len(store_2_hours) == 0, "Store 2 should be 24/7 (no business hours)"
-        print("✓ 24/7 store handling works")
+        logger.info("✓ 24/7 store handling works")
 
-        print("✓ Business logic requirements satisfied!")
+        logger.info("✓ Business logic requirements satisfied!")
         return True
-        
+
     except Exception as e:
-        print(f"✗ Business logic test failed: {e}")
+        logger.error(f"✗ Business logic test failed: {e}")
         return False
 
 
 async def run_tests():
     """Run all tests asynchronously"""
-    print("=== Store Monitoring System Requirements Test ===")
+    logger.info("=== Store Monitoring System Requirements Test ===")
 
     # Test 1: Create test data
     create_test_data()
-    
+
     # Test 2: Database schema
     if await test_database_schema():
         # Test 3: Data requirements
@@ -273,13 +280,13 @@ async def run_tests():
                 # Test 5: Business logic
                 test_business_logic()
 
-    print("\n=== Requirements Summary ===")
-    print("✓ Data sources: 3 CSV files with correct schemas")
-    print("✓ System requirement: Database storage with API access")
-    print("✓ Data output: Report with uptime/downtime metrics")
-    print("✓ API requirement: trigger_report and get_report endpoints")
-    print("✓ Business logic: Timezone handling, business hours, interpolation")
-    print("\n=== All requirements satisfied! ===")
+    logger.info("\n=== Requirements Summary ===")
+    logger.info("✓ Data sources: 3 CSV files with correct schemas")
+    logger.info("✓ System requirement: Database storage with API access")
+    logger.info("✓ Data output: Report with uptime/downtime metrics")
+    logger.info("✓ API requirement: trigger_report and get_report endpoints")
+    logger.info("✓ Business logic: Timezone handling, business hours, interpolation")
+    logger.info("\n=== All requirements satisfied! ===")
 
 
 if __name__ == "__main__":
